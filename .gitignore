@@ -1,0 +1,13 @@
+# Ignore object files
+*.o
+
+# Ignore compiled binaries
+print
+print_c
+
+# Ignore OS/editor-specific files
+.DS_Store
+*.swp
+*.swo
+*.bak
+*~
