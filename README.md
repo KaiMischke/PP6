@@ -97,14 +97,30 @@ print_escape
 Place your completed `print.sh` in `solutions/` and commit. Then link it here:
 
 ```
-[print.sh](https://github.com/YOUR_USERNAME/REPO_NAME/blob/main/solutions/print.sh)
+[print.sh](https://github.com/KaiMischke/PP6/blob/master/solutions/print.sh)
 ```
 
 #### Reflection Questions
 
 1. **What is the difference between `printf` and `echo` in Bash?**
+- `echo` gibt Zeichenketten einfach und schnell aus, eignet sich für Standardausgaben, verhält sich aber je nach System unterschiedlich.
+- `printf` bietet dagegen präzise Formatierungsmöglichkeiten (z. B. für Zahlen, Farben oder Tabs) und ist plattformunabhängig konsistenter.  
+→ **`printf` ist die bessere Wahl für strukturierte oder formatierte Ausgaben.**
+
 2. **What is the role of `~/.bashrc` in your shell environment?**
+Die `~/.bashrc` ist ein Konfigurationsskript, das bei jedem Start einer **interaktiven Bash-Shell** automatisch ausgeführt wird.  
+Sie dient zur Anpassung der Arbeitsumgebung, etwa durch:
+
+- Setzen von Umgebungsvariablen
+- Anpassen des Shell-Prompts (`PS1`)
+- Ausführen von Aliases, Begrüßungstexten oder eigenen Skripten
+  
 3. **Explain the difference between sourcing (`source ~/.bashrc`) and executing (`./print.sh`).**
+- `source ~/.bashrc` führt das Skript **im aktuellen Shell-Kontext** aus.  
+  → Änderungen (z. B. am Prompt) wirken sich **direkt auf die laufende Shell** aus.
+
+- `./print.sh` startet eine **neue Subshell**, führt das Skript isoliert aus und beendet sich danach.  
+  → Änderungen an Variablen oder Umgebungen gehen **beim Beenden verloren**.
 
 ---
 
@@ -119,6 +135,7 @@ Place your completed `print.sh` in `solutions/` and commit. Then link it here:
    * Any editor or OS-specific files
      Commit this `.gitignore` file.
      **Explain:** Why should compiled artifacts and binaries not be committed to a Git repository?
+     **Erklärung:** Weil .o-Dateien und Binärdateien (z. B. print) aus dem Quellcode generiert werden können und plattformabhängig sind. Sie blähen das Repository unnötig auf, machen Merges schwer und sind oft nicht nachvollziehbar versionierbar. Nur Quellcode sollte versioniert werden – nicht die Ergebnisse daraus.
 2. In `./solutions/`, create a file named `print.s` using the template below.
 3. Define a message in the `.data` section (e.g., `msg: .ascii "Hello from GAS!\n"`, `len = . - msg`).
 4. In the `.text` section’s `_start` symbol, invoke `sys_write` (syscall 4) and then `sys_exit` (syscall 1) via `int $0x80`.
@@ -154,15 +171,32 @@ _start:
 **Solution Reference**
 
 ```
-[print.s](https://github.com/YOUR_USERNAME/REPO_NAME/blob/main/solutions/print.s)
+[print.s](https://github.com/KaiMischke/PP6/blob/master/solutions/print.s)
 ```
 
 #### Reflection Questions
 
 1. **What is a file descriptor and how does the OS use it?**
-2. **How can you obtain or duplicate a file descriptor for another resource (e.g., a file or socket)?**
-3. **What might happen if you use an invalid file descriptor in a syscall?**
+Ein File Descriptor (Dateideskriptor) ist ein ganzzahliger Bezeichner, den das Betriebssystem verwendet, um geöffnete Dateien und Ressourcen (wie Pipes oder Sockets) zu verwalten. Jeder Prozess besitzt eine File-Descriptor-Tabelle, in der diese Deskriptoren auf interne Kernelstrukturen zeigen. Die wichtigsten Standardwerte sind:
 
+- `0` – Standard Input (stdin)
+- `1` – Standard Output (stdout)
+- `2` – Standard Error (stderr)
+  
+2. **How can you obtain or duplicate a file descriptor for another resource (e.g., a file or socket)?**
+Ein File Descriptor wird durch Systemaufrufe wie `open()`, `socket()` oder `accept()` erzeugt. Um einen bestehenden Deskriptor zu duplizieren, kann man:
+
+- `dup()` oder  
+- `dup2()`  
+
+verwenden. Diese erzeugen eine Kopie des Deskriptors, sodass mehrere Deskriptoren auf dieselbe Ressource zugreifen können, z. B. zur Umleitung von Ausgaben.
+
+3. **What might happen if you use an invalid file descriptor in a syscall?**
+Wird ein ungültiger File Descriptor verwendet (z. B. einer, der nie geöffnet oder bereits geschlossen wurde), gibt der Systemaufruf in der Regel den Fehlercode `-1` zurück und setzt die Variable `errno`. Häufiger Fehlerwert ist:
+
+- `EBADF` – „Bad File Descriptor“
+
+Ein solcher Fehler kann zu unerwartetem Verhalten oder Programmabbruch führen, wenn er nicht behandelt wird.
 ---
 
 ### Task 3: C Printing
@@ -194,14 +228,52 @@ int main(void) {
 **Solution Reference**
 
 ```
-[print.c](https://github.com/YOUR_USERNAME/REPO_NAME/blob/main/solutions/print.c)
+[print.c](https://github.com/KaiMischke/PP6/blob/master/solutions/print.c)
 ```
 
 #### Reflection Questions
 
 1. **Use `objdump -d` on `print_c` to find the assembly instructions corresponding to your `printf` calls.**
+- `objdump -d print_c` zeigt den disassemblierten Maschinencode.
+- `printf`-Aufrufe erscheinen als Funktionsaufrufe, z.B. `callq printf@PLT`.
+- Der Code ruft `printf` über die Procedure Linkage Table auf, nicht als direkten Text.
+- Man sieht Registeroperationen und Funktionsaufrufe auf Maschinenebene, keine hohen C-Strings.
+  
 2. **Why is the syntax written differently from GAS assembly? Compare NASM vs. GAS notation.**
+| Merkmal              | GAS (AT&T)                    | NASM (Intel)               |
+|----------------------|------------------------------|----------------------------|
+| Operandenreihenfolge  | Quelle, dann Ziel             | Ziel, dann Quelle          |
+| Registerpräfix       | `%` (z.B. `%eax`)             | kein Präfix (z.B. `eax`)    |
+| Befehlssuffix        | Gibt Operandenbreite an (`l`, `q`) | Keine Suffixe              |
+| Beispiel (move eax→ebx) | `movl %eax, %ebx`             | `mov ebx, eax`             |
+
+- Linux verwendet meist GAS/AT&T-Syntax.
+- Windows verwendet NASM/Intel-Syntax.
+  
 3. **How could you use `fprintf` to write output both to `stdout` and to a file instead? Provide example code.**
+- Mit `fprintf` können formatierte Ausgaben an verschiedene `FILE*`-Ziele senden, z.B. `stdout`, `stderr` oder eine geöffnete Datei.
+- ```c
+#include <stdio.h>
+
+int main(void) {
+    FILE *file = fopen("output.txt", "w");
+    if (!file) {
+        perror("Fehler beim Öffnen der Datei");
+        return 1;
+    }
+
+    // Ausgabe auf Konsole
+    fprintf(stdout, "Hello on screen!\n");
+
+    // Ausgabe in Datei
+    fprintf(file, "Hello in file!\n");
+
+    fclose(file);
+    return 0;
+}
+
+- `fprintf(stdout, ...)` schreibt auf die Konsole
+- `fprintf(file, ...)` schreibt in die geöffnete Datei
 
 ---
 
@@ -236,14 +308,24 @@ if __name__ == "__main__":
 **Solution Reference**
 
 ```
-[print.py](https://github.com/YOUR_USERNAME/REPO_NAME/blob/main/solutions/print.py)
+[print.py](https://github.com/KaiMischke/PP6/blob/master/solutions/print.py)
 ```
 
 #### Reflection Questions
 
 1. **Is Python’s print behavior closer to Bash, Assembly, or C? Explain.**
-2. **Can you inspect a Python script’s binary with `objdump`? Why or why not?**
+Das Verhalten von Python’s `print()` ist **am ehesten wie Bash**.
 
+- Beide sind interpretierte Sprachen mit einfacher Ausgabe-Syntax.
+- `print()` in Python und `echo` in Bash erlauben unkomplizierte Textausgabe und Formatierung.
+- Im Gegensatz dazu nutzt **C** `printf()` mit Formatierungszeichen, und **Assembly** erfordert systemnahe Aufrufe für Ausgaben.
+  
+2. **Can you inspect a Python script’s binary with `objdump`? Why or why not?**
+**Nein**, ein Python-Skript kann man nicht sinnvoll mit `objdump` untersuchen.
+
+- Python-Skripte sind reine **Textdateien**, keine kompilierten Binärdateien.
+- `objdump` analysiert **Maschinencode** in ausführbaren Binärdateien.
+  
 ---
 
 **Remember:** Stop working after **90 minutes** and document where you stopped.
